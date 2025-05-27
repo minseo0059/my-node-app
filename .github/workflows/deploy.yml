@@ -1,0 +1,67 @@
+name: Deploy to EC2 via SSH # 워크플로우 이름 (GitHub Actions 화면에 표시됨)
+
+on:
+
+push: # 'push' 이벤트가 발생했을 때 실행
+
+branches:
+
+- main # main 브랜치에 push될 때만 실행됨
+
+jobs:
+
+deploy:
+
+runs-on: ubuntu-latest # GitHub Actions가 실행될 가상 환경 (Ubuntu 최신버전)
+
+steps:
+
+- name: Checkout code
+
+uses: actions/checkout@v3 # 저장소의 코드를 체크아웃 (불러오기)
+
+- name: Deploy to EC2 via SSH
+
+uses: appleboy/ssh-action@v1.0.0 # SSH로 원격 서버 명령 실행을 도와주는 액션 사용
+
+with:
+
+host: ${{ secrets.HOST }} # EC2 서버의 퍼블릭 IP (GitHub Secrets에서 불러옴)
+
+username: ${{ secrets.USERNAME }} # EC2 로그인 계정 (보통 ubuntu)
+
+key: ${{ secrets.SSH_KEY }} # SSH 개인키 (GitHub Secret에 등록된 것)
+
+script: | # 아래는 EC2에서 실행할 실제 배포 스크립트
+
+# 1. 앱 디렉토리가 없으면 GitHub에서 clone
+
+if [ ! -d "/home/ubuntu/my-node-app" ]; then
+
+git clone https://github.com/minseo0059/my-node-app.git /home/ubuntu/my-node-app
+
+fi
+
+# 2. 앱 디렉토리로 이동
+
+cd /home/ubuntu/my-node-app
+
+# 3. 최신 코드로 업데이트 (main 브랜치 기준)
+
+git pull origin main
+
+# 4. Node.js 의존성 설치 (package.json 기반)
+
+npm install
+
+# 5. pm2로 앱 실행 또는 재시작
+
+if pm2 list | grep -q "app"; then
+
+pm2 restart app # 앱이 이미 실행 중이면 재시작
+
+else
+
+pm2 start app.js --name app # 처음 실행이면 app이라는 이름으로 시작
+
+fi
